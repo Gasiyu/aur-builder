@@ -1,0 +1,27 @@
+From d651656a47bdc6a3bdbf9e379ce72bb81f6121f8 Mon Sep 17 00:00:00 2001
+From: Gasiyu <gasiyu@proton.me>
+Date: Mon, 29 Dec 2025 12:34:15 +0700
+Subject: [PATCH] fix: use app path as resources path
+
+---
+ src/main/index.ts | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/main/index.ts b/src/main/index.ts
+index 8335615d..b299dbcb 100644
+--- a/src/main/index.ts
++++ b/src/main/index.ts
+@@ -137,8 +137,9 @@ if (isDevelopment) {
+     app.setPath('userData', devUserDataPath);
+ }
+ 
++const appDir = path.dirname(app.getAppPath());
+ const RESOURCES_PATH = app.isPackaged
+-    ? path.join(process.resourcesPath, 'assets')
++    ? path.join(appDir, 'assets')
+     : path.join(__dirname, '../../assets');
+ 
+ const getAssetPath = (...paths: string[]): string => {
+-- 
+2.52.0
+

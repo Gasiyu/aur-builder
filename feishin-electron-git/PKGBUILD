@@ -1,0 +1,54 @@
+# Contributor: solarbaron
+pkgname=feishin-electron-git
+pkgver=1.8.0
+pkgdesc='Modern music player with support for navidrome servers.'
+pkgrel=1
+arch=('x86_64')
+license=('GPL-3.0-only')
+depends=('electron39')
+optdepends=('mpv: Alternative audio backend')
+makedepends=('pnpm' 'git' 'libxcrypt-compat')
+url='https://github.com/jeffvli/feishin'
+provides=("feishin")
+conflicts=("feishin" "feishin-bin" "feishin-git")
+source=(
+    "$pkgname::git+$url#tag=v1.8.0"
+    "feishin.desktop"
+    "feishin.sh"
+    "0001-feat-only-set-dir-as-target-for-linux.patch"
+    "0001-fix-use-app-path-as-resources-path.patch")
+sha512sums=('3dd0269404fd4b817bef53b935562e3b96fc856ee5ceaedde3ee86bee15469e1871f1da45043f9c08e7ff60879331b1304d1ea71995c6248fa7d1459d8138b2e'
+            '3e896c5f1164361e613e54d8f18100e925cc0719741a3c939f0424037e28fef8ec6b3c3d5c4e9c0a544b8f1db2e112873942d6ed2047cb46b241c56c3bcbb209'
+            '6f92867a52af7a93f42c2eeaac792e18c97a9cf2282e8a6ed960b7a4ae351e47d20d72a827c89b71dbd7091f3467a3b8154ca05dfb11f238b8c233336657cd93'
+            '08eacbef0313d38665aac8bd1314790eda10a8b8ceda9f7d9841b1ee4cfe7379431e7aba12441a4eb19ac656334c2e67a4262ae1367333c7e86702d9e8f64ddb'
+            'eac40c9bdef34340a4d6f63a2acc6e6b02214adc9ef7d261dc37e4a49a44fc1b46599dd96727e352477a2b23b586c5dbb26e62b8f823eda70dad603944864d21')
+
+prepare() {
+  cd "$pkgname"
+  patch -p1 -i "../0001-feat-only-set-dir-as-target-for-linux.patch"
+  patch -p1 -i "../0001-fix-use-app-path-as-resources-path.patch"
+
+  # Get electron39 version and update package.json
+  _electron_version=$(electron39 --version | sed 's/^v//')
+  sed -i "s/\"electron\": \"[^\"]*\"/\"electron\": \"${_electron_version}\"/" package.json
+  sed -i "s/electronVersion: .*/electronVersion: ${_electron_version}/" electron-builder.yml
+}
+
+build() {
+  cd $pkgname
+  export npm_config_cache="$(mktemp -d)"
+  pnpm install --force
+  pnpm run package:linux
+  rm -rf "$npm_config_cache"
+}
+
+package() {
+  mkdir -p "${pkgdir}/usr/bin"
+  mkdir -p "${pkgdir}/usr/lib/feishin"
+  mkdir -p "${pkgdir}/usr/share/applications"
+  cp -r "${srcdir}/${pkgname}/dist/linux-unpacked/resources/assets" "${pkgdir}/usr/lib/feishin/"
+  install -Dm644 "${srcdir}/${pkgname%-electron-bin}/dist/linux-unpacked/resources/app.asar" "${pkgdir}/usr/lib/feishin/"
+  install -Dm644 "${srcdir}/${pkgname%-electron-bin}/assets/icons/icon.png" "${pkgdir}/usr/share/pixmaps/feishin.png"
+  install -Dm644 feishin.desktop "${pkgdir}/usr/share/applications/"
+  install -Dm755 feishin.sh "${pkgdir}/usr/bin/${pkgname%-electron-git}"
+}
