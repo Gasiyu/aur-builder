@@ -35,15 +35,11 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Import GPG key
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: |
-          echo "$GPG_PRIVATE_KEY" | gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" --import
-          echo "allow-preset-passphrase" >> ~/.gnupg/gpg-agent.conf
-          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
-          gpgconf --kill gpg-agent
-          gpgconf --launch gpg-agent
+        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd
+        id: import_gpg
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Create build user
         run: |
@@ -64,7 +60,7 @@ jobs:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format long | grep sec | head -1 | awk '{print $2}' | cut -d'/' -f2)
+          GPG_KEY_ID="${{ steps.import_gpg.outputs.keyid }}"
           sed -i "s/^#\?GPGKEY=.*/GPGKEY=\"${GPG_KEY_ID}\"/" /etc/makepkg.conf
           sed -i 's/^#\?BUILDENV=.*/BUILDENV=(!distcc color !ccache check sign)/' /etc/makepkg.conf
           # Import GPG key directly into builder's keyring
@@ -124,7 +120,7 @@ jobs:
       - name: Create pacman repository
         run: |
           cd output
-          GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format long | grep sec | head -1 | awk '{print $2}' | cut -d'/' -f2)
+          GPG_KEY_ID="${{ steps.import_gpg.outputs.keyid }}"
           repo-add --sign --key "$GPG_KEY_ID" ${REPO_NAME}.db.tar.zst *.pkg.tar.zst
           # repo-add creates symlinks; replace with actual files for release upload
           for link in ${REPO_NAME}.db ${REPO_NAME}.db.sig ${REPO_NAME}.files ${REPO_NAME}.files.sig; do
