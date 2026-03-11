@@ -1,0 +1,159 @@
+name: Build AUR Packages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '*/PKGBUILD'
+      - '.github/workflows/build.yml'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REPO_NAME: aur-builder
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    container:
+      image: archlinux:base-devel@sha256:42a29e6cc13502f8f80cb260300a9c6b1e6008c2308032b98e0c2e3663c6bce3
+    permissions:
+      contents: write
+
+    steps:
+      - name: Setup Arch Linux environment
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm git gnupg pacman-contrib namcap
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Import GPG key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" --import
+          echo "allow-preset-passphrase" >> ~/.gnupg/gpg-agent.conf
+          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
+          gpgconf --kill gpg-agent
+          gpgconf --launch gpg-agent
+
+      - name: Create build user
+        run: |
+          useradd -m builder
+          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+          chown -R builder:builder .
+
+      - name: Set x86_64-v3 build flags
+        run: |
+          # Remove multi-line CFLAGS (with backslash continuations) and replace with single line
+          sed -i '/^CFLAGS="/,/[^\\]"$/c\CFLAGS="-march=x86-64-v3 -mtune=generic -O2 -pipe -fno-plt -fexceptions -Wp,-D_FORTIFY_SOURCE=3 -Wformat -Werror=format-security -fstack-clash-protection -fcf-protection -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer"' /etc/makepkg.conf
+          sed -i 's/^#\?CXXFLAGS=.*/CXXFLAGS="$CFLAGS -Wp,-D_GLIBCXX_ASSERTIONS"/' /etc/makepkg.conf
+          sed -i "s/^#\\?MAKEFLAGS=.*/MAKEFLAGS=\"-j$(nproc)\"/" /etc/makepkg.conf
+          sed -i "s/^PKGEXT=.*/PKGEXT='.pkg.tar.zst'/" /etc/makepkg.conf
+
+      - name: Configure GPG for makepkg signing
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format long | grep sec | head -1 | awk '{print $2}' | cut -d'/' -f2)
+          sed -i "s/^#\?GPGKEY=.*/GPGKEY=\"${GPG_KEY_ID}\"/" /etc/makepkg.conf
+          sed -i 's/^#\?BUILDENV=.*/BUILDENV=(!distcc color !ccache check sign)/' /etc/makepkg.conf
+          # Import GPG key directly into builder's keyring
+          su builder -c "mkdir -p /home/builder/.gnupg && chmod 700 /home/builder/.gnupg"
+          # Write passphrase to a persistent file for builder's gpg.conf
+          PASSFILE=/home/builder/.gnupg/.passphrase
+          echo "$GPG_PASSPHRASE" > "$PASSFILE"
+          chown builder:builder "$PASSFILE"
+          chmod 600 "$PASSFILE"
+          # Configure builder's gpg to always use loopback pinentry with passphrase file
+          cat > /home/builder/.gnupg/gpg.conf <<EOF
+          pinentry-mode loopback
+          passphrase-file $PASSFILE
+          EOF
+          sed -i 's/^ *//' /home/builder/.gnupg/gpg.conf
+          chown builder:builder /home/builder/.gnupg/gpg.conf
+          cat > /home/builder/.gnupg/gpg-agent.conf <<EOF
+          allow-preset-passphrase
+          allow-loopback-pinentry
+          EOF
+          sed -i 's/^ *//' /home/builder/.gnupg/gpg-agent.conf
+          chown builder:builder /home/builder/.gnupg/gpg-agent.conf
+          # Import the private key for builder
+          echo "$GPG_PRIVATE_KEY" | su builder -c "gpg --batch --yes --no-tty --import" 2>&1
+          # Verify the imported key is not a stub
+          su builder -c "gpg --list-secret-keys --keyid-format long" 2>&1
+          if su builder -c "gpg --list-secret-keys" 2>&1 | grep -q 'sec#'; then
+            echo "::warning::Primary secret key is a stub (sec#). Checking if a signing-capable subkey exists..."
+            if ! su builder -c "gpg --list-secret-keys" 2>&1 | grep -qE 'ssb[^#].*\[.*S.*\]'; then
+              echo "::error::No signing-capable secret key found. The primary key is a stub and no subkey has [S] capability."
+              echo "::error::Fix: re-export with: gpg --armor --export-secret-keys B33529DF9D012321"
+              exit 1
+            fi
+          fi
+          # Restart builder's gpg-agent to pick up new config
+          su builder -c "gpgconf --kill gpg-agent"
+          # Also configure root gpg for repo-add signing
+          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
+          PASSFILE_ROOT=$(mktemp)
+          echo "$GPG_PASSPHRASE" > "$PASSFILE_ROOT"
+          chmod 600 "$PASSFILE_ROOT"
+          echo "passphrase-file $PASSFILE_ROOT" >> ~/.gnupg/gpg.conf
+
+      - name: Build packages
+        run: |
+          mkdir -p output
+          for pkg_dir in */; do
+            [ -f "${pkg_dir}PKGBUILD" ] || continue
+            echo "::group::Building ${pkg_dir%/}"
+            cd "$pkg_dir"
+            su builder -c "makepkg -s --noconfirm --sign --skippgpcheck"
+            cp *.pkg.tar.zst *.pkg.tar.zst.sig ../output/ 2>/dev/null || true
+            cd ..
+            echo "::endgroup::"
+          done
+
+      - name: Create pacman repository
+        run: |
+          cd output
+          GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format long | grep sec | head -1 | awk '{print $2}' | cut -d'/' -f2)
+          repo-add --sign --key "$GPG_KEY_ID" ${REPO_NAME}.db.tar.zst *.pkg.tar.zst
+          # repo-add creates symlinks; replace with actual files for release upload
+          for link in ${REPO_NAME}.db ${REPO_NAME}.db.sig ${REPO_NAME}.files ${REPO_NAME}.files.sig; do
+            if [ -L "$link" ]; then
+              target=$(readlink "$link")
+              rm "$link"
+              cp "$target" "$link"
+            fi
+          done
+
+      - name: Generate release tag
+        id: tag
+        run: |
+          TAG="v$(date +'%Y.%m.%d-%H%M%S')"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: "Package Build ${{ steps.tag.outputs.tag }}"
+          body: |
+            Automated AUR package build for x86_64-v3.
+
+            ### Usage
+            Add the following to your `/etc/pacman.conf`:
+            ```
+            [${{ env.REPO_NAME }}]
+            SigLevel = Required DatabaseOptional
+            Server = https://github.com/${{ github.repository }}/releases/latest/download
+            ```
+          files: output/*

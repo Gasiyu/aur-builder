@@ -7,7 +7,7 @@ arch=('x86_64')
 license=('GPL-3.0-only')
 depends=('electron39')
 optdepends=('mpv: Alternative audio backend')
-makedepends=('pnpm' 'git' 'libxcrypt-compat')
+makedepends=('pnpm' 'git' 'libxcrypt-compat' 'electron39')
 url='https://github.com/jeffvli/feishin'
 provides=("feishin")
 conflicts=("feishin" "feishin-bin" "feishin-git")
@@ -27,18 +27,13 @@ prepare() {
   cd "$pkgname"
   patch -p1 -i "../0001-feat-only-set-dir-as-target-for-linux.patch"
   patch -p1 -i "../0001-fix-use-app-path-as-resources-path.patch"
-
-  # Get electron39 version and update package.json
-  _electron_version=$(electron39 --version | sed 's/^v//')
-  sed -i "s/\"electron\": \"[^\"]*\"/\"electron\": \"${_electron_version}\"/" package.json
-  sed -i "s/electronVersion: .*/electronVersion: ${_electron_version}/" electron-builder.yml
 }
 
 build() {
   cd $pkgname
   export npm_config_cache="$(mktemp -d)"
   pnpm install --force
-  pnpm run package:linux
+  pnpm run package:linux --publish never
   rm -rf "$npm_config_cache"
 }
 
