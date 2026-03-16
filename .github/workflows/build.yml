@@ -47,6 +47,10 @@ jobs:
           echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
           chown -R builder:builder .
 
+      - name: Set packager identity
+        run: |
+          sed -i "s/^#\?PACKAGER=.*/PACKAGER=\"${{ secrets.PACKAGER }}\"/" /etc/makepkg.conf
+
       - name: Set x86_64-v3 build flags
         run: |
           # Remove multi-line CFLAGS (with backslash continuations) and replace with single line
