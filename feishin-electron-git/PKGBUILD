@@ -1,6 +1,6 @@
 # Contributor: solarbaron
 pkgname=feishin-electron-git
-pkgver=1.9.0
+pkgver=1.10.0
 pkgdesc='Modern music player with support for navidrome servers.'
 pkgrel=1
 arch=('x86_64')
@@ -12,12 +12,12 @@ url='https://github.com/jeffvli/feishin'
 provides=("feishin")
 conflicts=("feishin" "feishin-bin" "feishin-git")
 source=(
-    "$pkgname::git+$url#tag=v1.9.0"
+    "$pkgname::git+$url#tag=v1.10.0"
     "feishin.desktop"
     "feishin.sh"
     "0001-feat-only-set-dir-as-target-for-linux.patch"
     "0001-fix-use-app-path-as-resources-path.patch")
-sha512sums=('bcc9e8d9f8705a86e9a33728ec263f4eb774b83698e841d925bd550af3ea770634c4ccbc3a9e6d3458a6d4304069748cba57d704218e0c3c66a3adcf286a80fa'
+sha512sums=('e9f46d983060cbcbe377d525b6d4e634a68b00cff5e35c9c6ca2df26b252beaacb0d1c32bf6aebd32e1bf2af1b7c6f3ab21866abf2b2e333746e881c336a139a'
             '3e896c5f1164361e613e54d8f18100e925cc0719741a3c939f0424037e28fef8ec6b3c3d5c4e9c0a544b8f1db2e112873942d6ed2047cb46b241c56c3bcbb209'
             '6f92867a52af7a93f42c2eeaac792e18c97a9cf2282e8a6ed960b7a4ae351e47d20d72a827c89b71dbd7091f3467a3b8154ca05dfb11f238b8c233336657cd93'
             '08eacbef0313d38665aac8bd1314790eda10a8b8ceda9f7d9841b1ee4cfe7379431e7aba12441a4eb19ac656334c2e67a4262ae1367333c7e86702d9e8f64ddb'
