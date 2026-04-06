@@ -49,7 +49,7 @@ jobs:
 
       - name: Set packager identity
         run: |
-          sed -i "s/^#\?PACKAGER=.*/PACKAGER=\"${{ secrets.PACKAGER }}\"/" /etc/makepkg.conf
+          sed -i "s|^#\?PACKAGER=.*|PACKAGER=\"${{ secrets.PACKAGER }}\"|" /etc/makepkg.conf
 
       - name: Set x86_64-v3 build flags
         run: |
