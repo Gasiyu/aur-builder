@@ -1,0 +1,65 @@
+From 539b1ed1c0791ca05ce9bf9e16473ac6bf058a6d Mon Sep 17 00:00:00 2001
+From: Gasiyu <gasiyu@proton.me>
+Date: Thu, 11 Dec 2025 11:15:04 +0700
+Subject: [PATCH] feat(TagEditor): make filename selectable
+
+---
+ client/src/views/TagEditor.vue | 35 +++++++++++++++++++++++++++++++++-
+ 1 file changed, 34 insertions(+), 1 deletion(-)
+
+diff --git a/client/src/views/TagEditor.vue b/client/src/views/TagEditor.vue
+index 4d5ccc7..1a4a470 100644
+--- a/client/src/views/TagEditor.vue
++++ b/client/src/views/TagEditor.vue
+@@ -106,7 +106,12 @@
+             </div>
+ 
+             <div v-if='file' class='q-px-md'>
+-                <div class='text-center q-py-md text-subtitle2 text-grey-5 monospace'>{{file.filename}}</div>
++                <div class='row justify-center q-py-md'>
++                    <div class='text-center text-subtitle2 text-grey-5 monospace selectable'>{{file.filename}}</div>
++                    <q-btn flat dense round size='sm' class='q-ml-sm' @click='copyFilename' aria-label='Copy filename'>
++                        <q-icon name='mdi-clipboard-outline'></q-icon>
++                    </q-btn>
++                </div>
+                 <div class='q-mt-md'>
+                     <div v-for='(tag, i) in Object.keys(file.tags)' :key='i' class='row q-my-sm'>
+                         <div class='col-3 text-body2 text-uppercase text-primary text-weight-medium q-mt-sm q-pr-xs' style='text-overflow: ellipsis; overflow: hidden;'>
+@@ -684,6 +689,34 @@ function saveSettings() {
+     $1t.saveSettings(false);
+ }
+ 
++function copyFilename() {
++    if (!file.value) return;
++    const text = file.value.filename || file.value.path || '';
++    if (!text) return;
++    if (navigator.clipboard && navigator.clipboard.writeText) {
++        navigator.clipboard.writeText(text).then(() => {
++            $q.notify({message: 'Filename copied', timeout: 1500, position: 'top-right'});
++        }).catch(() => {
++            $q.notify({message: 'Copy failed', timeout: 1500, position: 'top-right'});
++        });
++    } else {
++        const el = document.createElement('textarea');
++        el.value = text;
++        el.setAttribute('readonly', '');
++        el.style.position = 'absolute';
++        el.style.left = '-9999px';
++        document.body.appendChild(el);
++        el.select();
++        try {
++            document.execCommand('copy');
++            $q.notify({message: 'Filename copied', timeout: 1500, position: 'top-right'});
++        } catch (e) {
++            $q.notify({message: 'Copy failed', timeout: 1500, position: 'top-right'});
++        }
++        document.body.removeChild(el);
++    }
++}
++
+ // Websocket callback
+ function wsCallback(e: any) {
+     switch (e.action) {
+-- 
+2.52.0
+

@@ -1,0 +1,70 @@
+# Maintainer: robertfoster
+# Contributor: Mark Wagie <mark dot wagie at tutanota dot com>
+
+pkgname=onetagger-git
+pkgver=1.7.0.r193.g2429a83
+pkgrel=1
+pkgdesc="Cross-platform music tagger with Beatport, Discogs, Musicbrainz, Spotify, Traxsource and many other services support."
+arch=('x86_64')
+url="https://onetagger.github.io/"
+license=('GPL3')
+depends=('alsa-lib' 'webkit2gtk')
+makedepends=('cargo' 'pnpm')
+source=(
+  "$pkgname"::"git+https://github.com/Marekkon5/onetagger.git"
+  "onetagger.desktop"
+  "0001-feat-TagEditor-make-filename-selectable.patch"
+)
+provides=('onetagger')
+conflicts=('onetagger')
+
+pkgver() {
+  cd "$pkgname"
+  git describe --long --tags --abbrev=7 --exclude='*[a-zA-Z][a-zA-Z]*' \
+    | sed -E 's/^[^0-9]*//;s/([^-]*-g)/r\1/;s/-/./g'
+}
+
+prepare() {
+  cd "$pkgname"
+  patch -p1 -i "../0001-feat-TagEditor-make-filename-selectable.patch"
+
+  pushd client
+  # pnpm config set cache-dir "$srcdir/pnpm-cache"
+  pnpm i
+  popd
+
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
+}
+
+build() {
+  cd "${pkgname}"
+
+  pushd client
+  pnpm run build
+  popd
+
+  CFLAGS+=" -ffat-lto-objects"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  cargo build --frozen --release --all-features
+}
+
+package() {
+  cd "${pkgname}"
+  install -Dm755 "target/release/onetagger" \
+    "${pkgdir}/usr/bin/onetagger"
+
+  install -Dm755 "target/release/onetagger-cli" \
+    "${pkgdir}/usr/bin/onetagger-cli"
+
+  install -Dm644 "$srcdir/onetagger.desktop" \
+    "${pkgdir}/usr/share/applications/onetagger.desktop"
+
+  install -Dm644 assets/128x128.png \
+    "${pkgdir}/usr/share/pixmaps/onetagger.png"
+}
+
+sha256sums=('SKIP'
+            '4e6cba3f230f422f61ef42bfe0f21b2f6016987199cdfc79bccc5b1b8d6a1655'
+            '08b9ce8c0e71b16566aa5efbb911b4c4076c1f15cbf71f3e78e9993295db79e0')
