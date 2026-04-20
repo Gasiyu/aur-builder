@@ -7,6 +7,11 @@ on:
       - '*/PKGBUILD'
       - '.github/workflows/build.yml'
   workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: 'Rebuild every package regardless of version changes'
+        type: boolean
+        default: false
 
 permissions: {}
 
@@ -29,7 +34,7 @@ jobs:
       - name: Setup Arch Linux environment
         run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm git gnupg pacman-contrib namcap
+          pacman -S --noconfirm git gnupg pacman-contrib namcap jq
 
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -108,12 +113,27 @@ jobs:
           chmod 600 "$PASSFILE_ROOT"
           echo "passphrase-file $PASSFILE_ROOT" >> ~/.gnupg/gpg.conf
 
+      - name: Fetch previous release assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          bash .github/scripts/fetch-previous-release.sh previous
+
+      - name: Detect updates
+        id: detect
+        env:
+          FORCE_REBUILD: ${{ inputs.force_rebuild }}
+        run: |
+          bash .github/scripts/detect-updates.sh previous
+
       - name: Build packages
+        if: steps.detect.outputs.built_any == 'true'
         run: |
           mkdir -p output
-          for pkg_dir in */; do
-            [ -f "${pkg_dir}PKGBUILD" ] || continue
-            echo "::group::Building ${pkg_dir%/}"
+          for pkg_dir in ${{ steps.detect.outputs.pkgs_to_build }}; do
+            [ -f "${pkg_dir}/PKGBUILD" ] || continue
+            echo "::group::Building ${pkg_dir}"
             cd "$pkg_dir"
             su builder -c "makepkg -s --noconfirm --sign --skippgpcheck"
             cp *.pkg.tar.zst *.pkg.tar.zst.sig ../output/ 2>/dev/null || true
@@ -121,7 +141,39 @@ jobs:
             echo "::endgroup::"
           done
 
+      - name: Carry over unchanged tarballs
+        if: steps.detect.outputs.built_any == 'true'
+        run: |
+          mkdir -p output
+          shopt -s nullglob
+          # Build a set of pkgnames already rebuilt (from output/).
+          declare -A rebuilt=()
+          for tarball in output/*.pkg.tar.zst; do
+            base="$(basename "$tarball")"
+            # Arch tarball name: <pkgname>-<pkgver>-<pkgrel>-<arch>.pkg.tar.zst
+            # Strip the last 3 dash-separated fields to recover pkgname.
+            name="$(echo "$base" | sed -E 's/-[^-]+-[^-]+-[^-]+\.pkg\.tar\.zst$//')"
+            rebuilt["$name"]=1
+          done
+          for tarball in previous/*.pkg.tar.zst; do
+            base="$(basename "$tarball")"
+            name="$(echo "$base" | sed -E 's/-[^-]+-[^-]+-[^-]+\.pkg\.tar\.zst$//')"
+            if [ -n "${rebuilt[$name]:-}" ]; then
+              echo "Skipping carry-over for $name (rebuilt this run)."
+              continue
+            fi
+            echo "Carrying over $base"
+            cp "$tarball" output/
+            if [ -f "${tarball}.sig" ]; then
+              cp "${tarball}.sig" output/
+            else
+              echo "::warning::No signature found for carried-over $base"
+            fi
+          done
+          ls -la output/
+
       - name: Create pacman repository
+        if: steps.detect.outputs.built_any == 'true'
         run: |
           cd output
           GPG_KEY_ID="${{ steps.import_gpg.outputs.keyid }}"
@@ -137,11 +189,13 @@ jobs:
 
       - name: Generate release tag
         id: tag
+        if: steps.detect.outputs.built_any == 'true'
         run: |
           TAG="v$(date +'%Y.%m.%d-%H%M%S')"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
+        if: steps.detect.outputs.built_any == 'true'
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
