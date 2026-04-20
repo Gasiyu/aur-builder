@@ -1,7 +1,7 @@
 pkgbase = karere
 	pkgdesc = A fast, native WhatsApp client for Linux with GTK4/LibAdwaita
 	pkgver = 3.0.2
-	pkgrel = 2
+	pkgrel = 3
 	url = https://github.com/tobagin/karere
 	arch = x86_64
 	license = GPL-3.0-or-later
