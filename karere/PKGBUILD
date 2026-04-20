@@ -2,7 +2,7 @@
 
 pkgname=karere
 pkgver=3.0.2
-pkgrel=1
+pkgrel=2
 pkgdesc="A fast, native WhatsApp client for Linux with GTK4/LibAdwaita"
 arch=('x86_64')
 url="https://github.com/tobagin/karere"
@@ -12,6 +12,7 @@ depends=(
 	'libadwaita'
 	'webkitgtk-6.0'
 	'glib2'
+	'gsettings-desktop-schemas'
 	'hicolor-icon-theme'
 	'dbus'
 	'cairo'
@@ -21,6 +22,7 @@ makedepends=(
 	'meson'
 	'ninja'
 	'rust'
+	'glib2'
 	'desktop-file-utils'
 	'appstream-glib'
 	'appstream'
@@ -52,12 +54,17 @@ build() {
 	sed -i "s/, '--offline'//" meson.build
 
 	# Strip source paths from binary to avoid $srcdir references in panic messages
-	export RUSTFLAGS="--remap-path-prefix=$srcdir=/build"
+	RUSTFLAGS+=" --remap-path-prefix=$srcdir=/build"
+	export RUSTFLAGS
 
 	meson setup build \
 		--prefix=/usr \
 		--buildtype=release \
 		-Dprofile=default
+
+	install -Dm644 \
+		build/data/io.github.tobagin.karere.gschema.xml \
+		data/io.github.tobagin.karere.gschema.xml
 
 	meson compile -C build
 }
@@ -66,6 +73,8 @@ package() {
 	cd "$srcdir/$pkgname-$pkgver"
 
 	meson install -C build --destdir="$pkgdir"
+
+	glib-compile-schemas "$pkgdir/usr/share/glib-2.0/schemas"
 
 	# Validate desktop file
 	desktop-file-validate "$pkgdir/usr/share/applications/"*.desktop
