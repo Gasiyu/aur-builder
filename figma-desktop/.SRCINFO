@@ -1,0 +1,20 @@
+pkgbase = figma-desktop
+	pkgdesc = Figma Desktop for Linux
+	pkgver = 126.2.10
+	pkgrel = 1
+	url = https://github.com/IliyaBrook/figma-linux
+	arch = x86_64
+	license = custom:Proprietary
+	makedepends = 7zip
+	makedepends = curl
+	makedepends = imagemagick
+	makedepends = nodejs>=20
+	makedepends = npm
+	makedepends = wget
+	options = !strip
+	source = figma-desktop-126.2.10.tar.gz::https://github.com/IliyaBrook/figma-linux/archive/refs/tags/figma-desktop_126.2.10.tar.gz
+	source = Figma-126.2.10-full.nupkg::https://desktop.figma.com/win/build/Figma-126.2.10-full.nupkg
+	sha256sums = a1f16da9298f3c67bbe49b9697f09ca80633f0ef5ada7e4ce5db2f4c719ffea2
+	sha256sums = 84947e19ffacba9421cdd538ef764c48da9f6f9e799bb19dc2527cb3dd285917
+
+pkgname = figma-desktop
