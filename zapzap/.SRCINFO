@@ -21,6 +21,6 @@ pkgbase = zapzap
 	depends = python-typing_extensions>=4.6.1
 	optdepends = hunspell: spell check
 	source = git+https://github.com/rafatosta/zapzap#tag=6.4.0
-	b2sums = 1078bebab349b7c2399aaad9770ed9e8ef2bcb0fa7050baad46fa8f20ce8929e0b75e76c24a0f16f9fda76130212942 cdc42beaefa59e484678692beb187bd29
+	b2sums = 1078bebab349b7c2399aaad9770ed9e8ef2bcb0fa7050baad46fa8f20ce8929e0b75e76c24a0f16f9fda76130212942cdc42beaefa59e484678692beb187bd29
 
 pkgname = zapzap
