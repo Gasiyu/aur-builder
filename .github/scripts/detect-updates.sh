@@ -12,8 +12,9 @@
 #
 # Env:
 #   FORCE_REBUILD=true    - flag every package regardless of version comparison.
-#   GITHUB_OUTPUT         - when set, `pkgs_to_build` (space-separated) and
-#                           `built_any` (true|false) are appended here.
+#   GITHUB_OUTPUT         - when set, `pkgs_to_build`, `built_any`,
+#                           `current_pkg_names`, `removed_pkg_names`, and
+#                           `release_changed` are appended here.
 #   DRY_RUN=true          - print decisions to stdout and skip writing to
 #                           GITHUB_OUTPUT (useful for local debugging).
 #
@@ -66,7 +67,19 @@ parse_srcinfo() {
   '
 }
 
+join_sorted_unique() {
+  if [ "$#" -eq 0 ]; then
+    echo ""
+    return
+  fi
+
+  printf '%s\n' "$@" | sort -u | paste -sd' ' -
+}
+
 pkgs_to_build=()
+current_pkg_names=()
+removed_pkg_names=()
+declare -A current_pkg_set=()
 
 for pkgbuild in */PKGBUILD; do
   [ -f "$pkgbuild" ] || continue
@@ -97,6 +110,9 @@ for pkgbuild in */PKGBUILD; do
     exit 1
   fi
 
+  current_pkg_set["$pkgname"]=1
+  current_pkg_names+=("$pkgname")
+
   prev="${prev_ver[$pkgname]:-}"
   reason=""
   if [ "$FORCE_REBUILD" = "true" ]; then
@@ -119,12 +135,28 @@ done
 built_any=false
 [ ${#pkgs_to_build[@]} -gt 0 ] && built_any=true
 
+for pkgname in "${!prev_ver[@]}"; do
+  if [ -z "${current_pkg_set[$pkgname]:-}" ]; then
+    removed_pkg_names+=("$pkgname")
+  fi
+done
+
+release_changed=false
+if [ "$built_any" = "true" ] || [ ${#removed_pkg_names[@]} -gt 0 ]; then
+  release_changed=true
+fi
+
 joined="${pkgs_to_build[*]:-}"
+current_joined="$(join_sorted_unique "${current_pkg_names[@]:-}")"
+removed_joined="$(join_sorted_unique "${removed_pkg_names[@]:-}")"
 
 echo ""
 echo "=== Detection summary ==="
 echo "built_any=$built_any"
 echo "pkgs_to_build=$joined"
+echo "current_pkg_names=$current_joined"
+echo "removed_pkg_names=$removed_joined"
+echo "release_changed=$release_changed"
 
 if [ "$DRY_RUN" = "true" ]; then
   exit 0
@@ -134,5 +166,8 @@ if [ -n "${GITHUB_OUTPUT:-}" ]; then
   {
     echo "pkgs_to_build=$joined"
     echo "built_any=$built_any"
+    echo "current_pkg_names=$current_joined"
+    echo "removed_pkg_names=$removed_joined"
+    echo "release_changed=$release_changed"
   } >> "$GITHUB_OUTPUT"
 fi
