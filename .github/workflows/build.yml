@@ -54,15 +54,35 @@ jobs:
 
       - name: Set packager identity
         run: |
-          sed -i "s|^#\?PACKAGER=.*|PACKAGER=\"${{ secrets.PACKAGER }}\"|" /etc/makepkg.conf
+          install -d -m 755 /etc/makepkg.conf.d
+          printf 'PACKAGER=%q\n' "${{ secrets.PACKAGER }}" > /etc/makepkg.conf.d/10-packager.conf
 
       - name: Set x86_64-v3 build flags
         run: |
-          # Remove multi-line CFLAGS (with backslash continuations) and replace with single line
-          sed -i '/^CFLAGS="/,/[^\\]"$/c\CFLAGS="-march=x86-64-v3 -mtune=generic -O2 -pipe -fno-plt -fexceptions -Wp,-D_FORTIFY_SOURCE=3 -Wformat -Werror=format-security -fstack-clash-protection -fcf-protection -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer"' /etc/makepkg.conf
-          sed -i 's/^#\?CXXFLAGS=.*/CXXFLAGS="$CFLAGS -Wp,-D_GLIBCXX_ASSERTIONS"/' /etc/makepkg.conf
-          sed -i "s/^#\\?MAKEFLAGS=.*/MAKEFLAGS=\"-j$(nproc)\"/" /etc/makepkg.conf
-          sed -i "s/^PKGEXT=.*/PKGEXT='.pkg.tar.zst'/" /etc/makepkg.conf
+          install -d -m 755 /etc/makepkg.conf.d
+          cat > /etc/makepkg.conf.d/20-build-flags.conf <<EOF
+          CFLAGS="-march=native -O3 -pipe -fno-plt -fexceptions -Wp,-D_FORTIFY_SOURCE=3 -Wformat -Werror=format-security -fstack-clash-protection -fcf-protection"
+          CXXFLAGS="$CFLAGS -Wp,-D_GLIBCXX_ASSERTIONS"
+          LDFLAGS="-Wl,-O1 -Wl,--sort-common -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,-z,pack-relative-relocs"
+          LTOFLAGS="-flto=auto"
+          MAKEFLAGS="-j$(nproc)"
+          NINJAFLAGS="-j$(nproc)"
+          RUSTFLAGS="-C opt-level=3 -C target-cpu=native"
+          DEBUG_RUSTFLAGS="-C debuginfo=2"
+          DEBUG_CFLAGS="-g"
+          DEBUG_CXXFLAGS="$DEBUG_CFLAGS"
+          BUILDENV=(!distcc color !ccache check !sign)
+          OPTIONS=(strip docs !libtool !staticlibs emptydirs zipman purge !debug lto !autodeps)
+          STRIP_BINARIES="--strip-all"
+          STRIP_SHARED="--strip-unneeded"
+          STRIP_STATIC="--strip-debug"
+          MAN_DIRS=(usr{,/local}{,/share}/{man,info})
+          DOC_DIRS=(usr/{,local/}{,share/}{doc,gtk-doc})
+          PURGE_TARGETS=(usr/{,share}/info/dir .packlist *.pod)
+          DBGSRCDIR="/usr/src/debug"
+          LIB_DIRS=('lib:usr/lib' 'lib32:usr/lib32')
+          PKGEXT='.pkg.tar.zst'
+          EOF
 
       - name: Configure GPG for makepkg signing
         env:
@@ -70,8 +90,11 @@ jobs:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           GPG_KEY_ID="${{ steps.import_gpg.outputs.keyid }}"
-          sed -i "s/^#\?GPGKEY=.*/GPGKEY=\"${GPG_KEY_ID}\"/" /etc/makepkg.conf
-          sed -i 's/^#\?BUILDENV=.*/BUILDENV=(!distcc color !ccache check sign)/' /etc/makepkg.conf
+          install -d -m 755 /etc/makepkg.conf.d
+          cat > /etc/makepkg.conf.d/30-signing.conf <<EOF
+          GPGKEY="${GPG_KEY_ID}"
+          BUILDENV=(!distcc color !ccache check sign)
+          EOF
           # Import GPG key directly into builder's keyring
           su builder -c "mkdir -p /home/builder/.gnupg && chmod 700 /home/builder/.gnupg"
           # Write passphrase to a persistent file for builder's gpg.conf
