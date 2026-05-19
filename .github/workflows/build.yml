@@ -67,7 +67,7 @@ jobs:
           LTOFLAGS="-flto=auto"
           MAKEFLAGS="-j$(nproc)"
           NINJAFLAGS="-j$(nproc)"
-          RUSTFLAGS="-C opt-level=3 -C target-cpu=native"
+          RUSTFLAGS="-C opt-level=3 -C target-cpu=x86-64-v3"
           DEBUG_RUSTFLAGS="-C debuginfo=2"
           DEBUG_CFLAGS="-g"
           DEBUG_CXXFLAGS="$DEBUG_CFLAGS"
