@@ -19,11 +19,9 @@ pkgbase = feishin-electron-git
 	source = feishin.desktop
 	source = feishin.sh
 	source = 0001-feat-only-set-dir-as-target-for-linux.patch
-	source = 0001-fix-use-app-path-as-resources-path.patch
 	sha512sums = d62a7a022ba158900a975b3f2adefc7527094dadd5dd652564f6d64a272e37679df25b9d4fa4f2178bfded2ea410b5381ab097de80f1aee45870062afe553473
 	sha512sums = 3e896c5f1164361e613e54d8f18100e925cc0719741a3c939f0424037e28fef8ec6b3c3d5c4e9c0a544b8f1db2e112873942d6ed2047cb46b241c56c3bcbb209
 	sha512sums = 10aff7706186e33366691746e9b1d5cea515fb894ff627d283b080c1e97fecb9be5122aebcd49807191a65e405a46ff48fc4181553e163cd3e1ae98cfb2b6646
 	sha512sums = 08eacbef0313d38665aac8bd1314790eda10a8b8ceda9f7d9841b1ee4cfe7379431e7aba12441a4eb19ac656334c2e67a4262ae1367333c7e86702d9e8f64ddb
-	sha512sums = eac40c9bdef34340a4d6f63a2acc6e6b02214adc9ef7d261dc37e4a49a44fc1b46599dd96727e352477a2b23b586c5dbb26e62b8f823eda70dad603944864d21
 
 pkgname = feishin-electron-git
