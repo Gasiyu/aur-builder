@@ -257,3 +257,18 @@ jobs:
             Server = https://github.com/${{ github.repository }}/releases/latest/download
             ```
           files: output/*
+
+      - name: Delete older releases
+        if: steps.detect.outputs.release_changed == 'true'
+        uses: sgpublic/delete-release-action@0972c6da28d8829cdc95fae0e71afcb9079dadc9 # v1.2
+        with:
+          release-drop: true
+          release-keep-count: 0
+          release-drop-tag: true
+          pre-release-drop: true
+          pre-release-keep-count: -1
+          pre-release-drop-tag: true
+          draft-drop: true
+          draft-drop-count: -1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
