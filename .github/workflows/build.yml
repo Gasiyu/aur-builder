@@ -52,49 +52,16 @@ jobs:
           echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
           chown -R builder:builder .
 
-      - name: Set packager identity
-        run: |
-          install -d -m 755 /etc/makepkg.conf.d
-          printf 'PACKAGER=%q\n' "${{ secrets.PACKAGER }}" > /etc/makepkg.conf.d/10-packager.conf
-
       - name: Set x86_64-v3 build flags
         run: |
           install -d -m 755 /etc/makepkg.conf.d
-          cat > /etc/makepkg.conf.d/20-build-flags.conf <<EOF
-          CFLAGS="-march=x86-64-v3 -O3 -pipe -fno-plt -fexceptions -Wp,-D_FORTIFY_SOURCE=3 -Wformat -Werror=format-security -fstack-clash-protection -fcf-protection"
-          CXXFLAGS="$CFLAGS -Wp,-D_GLIBCXX_ASSERTIONS"
-          LDFLAGS="-Wl,-O1 -Wl,--sort-common -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,-z,pack-relative-relocs"
-          LTOFLAGS="-flto=auto"
-          MAKEFLAGS="-j$(nproc)"
-          NINJAFLAGS="-j$(nproc)"
-          RUSTFLAGS="-C opt-level=3 -C target-cpu=x86-64-v3"
-          DEBUG_RUSTFLAGS="-C debuginfo=2"
-          DEBUG_CFLAGS="-g"
-          DEBUG_CXXFLAGS="$DEBUG_CFLAGS"
-          BUILDENV=(!distcc color !ccache check !sign)
-          OPTIONS=(strip docs !libtool !staticlibs emptydirs zipman purge !debug lto !autodeps)
-          STRIP_BINARIES="--strip-all"
-          STRIP_SHARED="--strip-unneeded"
-          STRIP_STATIC="--strip-debug"
-          MAN_DIRS=(usr{,/local}{,/share}/{man,info})
-          DOC_DIRS=(usr/{,local/}{,share/}{doc,gtk-doc})
-          PURGE_TARGETS=(usr/{,share}/info/dir .packlist *.pod)
-          DBGSRCDIR="/usr/src/debug"
-          LIB_DIRS=('lib:usr/lib' 'lib32:usr/lib32')
-          PKGEXT='.pkg.tar.zst'
-          EOF
+          install -m 644 .github/files/20-build-flags.conf /etc/makepkg.conf.d/20-build-flags.conf
 
       - name: Configure GPG for makepkg signing
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          GPG_KEY_ID="${{ steps.import_gpg.outputs.keyid }}"
-          install -d -m 755 /etc/makepkg.conf.d
-          cat > /etc/makepkg.conf.d/30-signing.conf <<EOF
-          GPGKEY="${GPG_KEY_ID}"
-          BUILDENV=(!distcc color !ccache check sign)
-          EOF
           # Import GPG key directly into builder's keyring
           su builder -c "mkdir -p /home/builder/.gnupg && chmod 700 /home/builder/.gnupg"
           # Write passphrase to a persistent file for builder's gpg.conf
@@ -103,18 +70,8 @@ jobs:
           chown builder:builder "$PASSFILE"
           chmod 600 "$PASSFILE"
           # Configure builder's gpg to always use loopback pinentry with passphrase file
-          cat > /home/builder/.gnupg/gpg.conf <<EOF
-          pinentry-mode loopback
-          passphrase-file $PASSFILE
-          EOF
-          sed -i 's/^ *//' /home/builder/.gnupg/gpg.conf
-          chown builder:builder /home/builder/.gnupg/gpg.conf
-          cat > /home/builder/.gnupg/gpg-agent.conf <<EOF
-          allow-preset-passphrase
-          allow-loopback-pinentry
-          EOF
-          sed -i 's/^ *//' /home/builder/.gnupg/gpg-agent.conf
-          chown builder:builder /home/builder/.gnupg/gpg-agent.conf
+          install -m 644 -o builder -g builder .github/files/gpg.conf /home/builder/.gnupg/gpg.conf
+          install -m 644 -o builder -g builder .github/files/gpg-agent.conf /home/builder/.gnupg/gpg-agent.conf
           # Import the private key for builder
           echo "$GPG_PRIVATE_KEY" | su builder -c "gpg --batch --yes --no-tty --import" 2>&1
           # Verify the imported key is not a stub
@@ -247,11 +204,20 @@ jobs:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: "Package Build ${{ steps.tag.outputs.tag }}"
           body: |
-            Automated AUR package build for x86_64-v3.
+            Automated AUR package build for **x86_64-v3**.
 
             ### Usage
-            Add the following to your `/etc/pacman.conf`:
+
+            Import & trust locally the GPG Key:
+
+            ```bash
+            sudo pacman-key --keyserver keyserver.ubuntu.com --recv-keys 352B896C91A2B8A3376E13F7B33529DF9D012321
+            sudo pacman-key --lsign-key 352B896C91A2B8A3376E13F7B33529DF9D012321
             ```
+
+            Add the following to your `/etc/pacman.conf`:
+
+            ```conf
             [${{ env.REPO_NAME }}]
             SigLevel = Required DatabaseOptional
             Server = https://github.com/${{ github.repository }}/releases/latest/download
