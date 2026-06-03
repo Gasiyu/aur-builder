@@ -6,6 +6,8 @@ on:
     paths:
       - '*/PKGBUILD'
       - '.github/workflows/build.yml'
+  schedule:
+    - cron: '0 4 * * *'
   workflow_dispatch:
     inputs:
       force_rebuild:
@@ -17,7 +19,7 @@ permissions: {}
 
 concurrency:
   group: build-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   REPO_NAME: aur-builder
@@ -25,6 +27,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
     container:
       image: archlinux:base-devel@sha256:42a29e6cc13502f8f80cb260300a9c6b1e6008c2308032b98e0c2e3663c6bce3
     permissions:
