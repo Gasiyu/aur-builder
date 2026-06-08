@@ -1,0 +1,71 @@
+# Maintainer: Gasiyu <album-lanky-dinner@duck.com>
+
+_appid="page.codeberg.M23Snezhok.Vinyl"
+pkgname=vinyl-player
+pkgver=1.4.0
+pkgrel=1
+pkgdesc="Elegant music player"
+url="https://codeberg.org/M23Snezhok/Vinyl"
+license=('GPL-3.0-or-later')
+depends=(
+    'gtk4'
+    'libadwaita'
+    'glib2'
+    'gstreamer'
+    'gst-plugins-base-libs'
+    'gst-plugins-base'
+    'gst-plugins-bad-libs'
+    'gst-plugins-good'
+    'hicolor-icon-theme'
+    'dbus'
+    'gcc-libs'
+    'glibc'
+)
+makedepends=(
+    'cargo'
+    'git'
+    'rust'
+)
+optdepends=(
+    'gst-libav: additional codec support'
+    'gst-plugins-bad: additional GStreamer plugins'
+    'gst-plugins-ugly: additional codec support'
+    'ffmpeg: enhanced media playback support'
+)
+arch=('x86_64' 'aarch64')
+provides=('vinyl-player')
+conflicts=('vinyl-player-git')
+source=("Vinyl-$pkgver.tar.gz::https://codeberg.org/M23Snezhok/Vinyl/archive/v$pkgver.tar.gz")
+sha256sums=('0c74b5f21a1f1ca3848f3ea2c0d7172ba2b053c4af279b66f9682cfd491a7e9f')
+
+prepare() {
+    cd "$srcdir/vinyl"
+    export RUSTUP_TOOLCHAIN=stable
+    cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+    cd "$srcdir/vinyl"
+    export RUSTUP_TOOLCHAIN=stable
+    export CARGO_TARGET_DIR=target
+    cargo build --frozen --release --all-features
+}
+
+check() {
+    cd "$srcdir/vinyl"
+    export RUSTUP_TOOLCHAIN=stable
+    cargo test --frozen --release --all-features || true
+}
+
+package() {
+    cd "$srcdir/vinyl"
+    install -Dm755 "target/release/vinyl-player" "$pkgdir/usr/bin/vinyl-player"
+    install -Dm644 "data/${_appid}.desktop" "$pkgdir/usr/share/applications/${_appid}.desktop"
+    install -Dm644 "data/${_appid}.service" "$pkgdir/usr/share/dbus-1/services/${_appid}.service"
+    install -Dm644 "data/${_appid}.metainfo.xml" "$pkgdir/usr/share/metainfo/${_appid}.metainfo.xml"
+    install -Dm644 "data/hicolor/scalable/apps/${_appid}.svg" \
+        "$pkgdir/usr/share/icons/hicolor/scalable/apps/${_appid}.svg"
+    install -Dm644 "data/hicolor/symbolic/apps/${_appid}-symbolic.svg" \
+        "$pkgdir/usr/share/icons/hicolor/symbolic/apps/${_appid}-symbolic.svg"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
