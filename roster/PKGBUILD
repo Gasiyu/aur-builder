@@ -1,0 +1,34 @@
+# Maintainer: Gasiyu <album-lanky-dinner@duck.com>
+
+pkgname=roster
+pkgver=0.11.0
+pkgrel=1
+pkgdesc="HTTP client for API testing"
+arch=('x86_64' 'aarch64')
+url="https://git.bugsy.cz/beval/${pkgname}"
+license=('GPL-3.0-or-later')
+depends=(
+	'gtk4'
+	'libadwaita'
+	'libsoup3'
+	'libsecret'
+	'gjs'
+	'python'
+)
+makedepends=('git' 'meson' 'ninja' 'gettext')
+source=("git+${url}.git#tag=v${pkgver}")
+sha256sums=('4be9639f4c42bfc1a9514bc7c9b2a85ca6c9f2cedbfed9df73739ea37941c2c2')
+
+build() {
+	export CFLAGS+=" -ffat-lto-objects"
+	meson setup --prefix=/usr --libexecdir=lib --buildtype=release build "${pkgname}"
+	meson compile -C build
+}
+
+check() {
+	meson test -C build --print-errorlogs
+}
+
+package() {
+	meson install -C build --no-rebuild --destdir "${pkgdir}"
+}

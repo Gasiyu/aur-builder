@@ -1,0 +1,22 @@
+pkgbase = roster
+	pkgdesc = HTTP client for API testing
+	pkgver = 0.11.0
+	pkgrel = 1
+	url = https://git.bugsy.cz/beval/roster
+	arch = x86_64
+	arch = aarch64
+	license = GPL-3.0-or-later
+	makedepends = git
+	makedepends = meson
+	makedepends = ninja
+	makedepends = gettext
+	depends = gtk4
+	depends = libadwaita
+	depends = libsoup3
+	depends = libsecret
+	depends = gjs
+	depends = python
+	source = git+https://git.bugsy.cz/beval/roster.git#tag=v0.11.0
+	sha256sums = 4be9639f4c42bfc1a9514bc7c9b2a85ca6c9f2cedbfed9df73739ea37941c2c2
+
+pkgname = roster
