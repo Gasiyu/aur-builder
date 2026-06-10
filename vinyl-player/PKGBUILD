@@ -2,7 +2,7 @@
 
 _appid="page.codeberg.M23Snezhok.Vinyl"
 pkgname=vinyl-player
-pkgver=1.4.0
+pkgver=1.4.1
 pkgrel=1
 pkgdesc="Elegant music player"
 url="https://codeberg.org/M23Snezhok/Vinyl"
@@ -36,7 +36,7 @@ arch=('x86_64' 'aarch64')
 provides=('vinyl-player')
 conflicts=('vinyl-player-git')
 source=("Vinyl-$pkgver.tar.gz::https://codeberg.org/M23Snezhok/Vinyl/archive/v$pkgver.tar.gz")
-sha256sums=('0c74b5f21a1f1ca3848f3ea2c0d7172ba2b053c4af279b66f9682cfd491a7e9f')
+sha256sums=('299f01ea97f1dcf6a0f698cb02bc6db298389ab7d4c47228f4911516fd819790')
 
 prepare() {
     cd "$srcdir/vinyl"
