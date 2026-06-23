@@ -63,7 +63,7 @@ build() {
 package() {
     cd "$pkgname-$pkgver"
 
-    local appdir="target/dx/kopuz/release/linux/app"
+    local appdir="target/dx/kopuz/debug/linux/app"
 
     install -Dm755 "$appdir/kopuz" "$pkgdir/usr/bin/kopuz"
 
