@@ -30,6 +30,8 @@ makedepends=(
     'cargo'
     'git'
     'dioxus-cli'
+    'npm'
+    'nodejs'
 )
 options=(!lto !debug)
 # dioxus-cli must be installed manually or from AUR at version matching dioxus 0.7.x:
@@ -53,7 +55,9 @@ build() {
     export RUSTUP_TOOLCHAIN=stable
 
     # tailwind.css is pre-built and included in the release tarball
-    dx build --release --platform desktop -p kopuz
+    npm install
+    npx @tailwindcss/cli -i ./tailwind.css -o ./crates/kopuz/assets/tailwind.css --content './crates/kopuz/**/*.rs,./crates/components/**/*.rs,./crates/pages/**/*.rs,./crates/hooks/**/*.rs,./crates/player/**/*.rs,./crates/reader/**/*.rs' --minify
+    dx build --platform desktop -p kopuz
 }
 
 package() {
